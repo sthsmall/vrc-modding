@@ -6,8 +6,8 @@ compatibility: OpenCode v2; Unity + VRCSDK + Modular Avatar projects; requires n
 metadata:
   opencode/slash: "true"
   opencode/autoinvoke: "true"
-  version: "2.1.0"
-  captured: "2026-08-31"
+  version: "2.2.0"
+  captured: "2026-09-02"
 ---
 
 # VRChat model modding workflow (改模习惯 + MA 规范)
@@ -114,6 +114,20 @@ Before a change, classify the target as one of:
 - **Build clone / cache** - temporary preview/built copy or editor cache; treat as disposable diagnostics.
 
 Map all known consumers before modifying shared assets. Do not edit timestamped or tool-owned generated output. Apply, regeneration, and build operations can affect more avatars than the selected scene object.
+
+## Gesture Manager and Avatar Optimizer rules
+
+### Gesture Manager (preview only, not an authoring provider)
+
+- Treat Gesture Manager as a Unity editor preview and diagnostics tool, not an authoring provider. Record whether the run used Play Mode, a clone, radial menu/parameter emulation, clickable Contacts, gesture weights, Animator debugging, or OSC.
+- Label the result exactly `CLIENT_RUNTIME (Unity/Gesture Manager preview)`; never promote it to VRChat desktop, VR, multiplayer, SDK build, or upload proof.
+
+### Avatar Optimizer (settings and originals are source; optimized output is build output)
+
+- Treat optimizer settings and original assets as sources; treat optimized meshes, materials, components, paths, and clones as NDMF/build outputs.
+- When a claim depends on it, check menu, animation, BlendShape, PhysBone, Contact, material, and renderer routes against the optimized result.
+- Do not recommend optimization merely because the package is installed or a metric is near a limit. Enter optimization only on user request, confirmed hard overflow, or a measured performance target.
+- Preserve exact before/after build evidence and do not edit optimized output as the durable fix.
 
 ## Source and version discipline
 
