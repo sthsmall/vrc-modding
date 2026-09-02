@@ -33,6 +33,10 @@ Check attachment mode, position/rotation preservation, and scale behavior. Do no
 
 Use hierarchy objects to define expression controls and install them into an avatar menu.
 
+**Binding rules**: MenuItems are only installed when they are (a) on the same node as a Menu Installer, (b) a direct child of a Menu Group (usually on the Installer node), or (c) children of a parent MenuItem in `MenuSource=Children` mode. A MenuItem with no Installer/MenuGroup/parent chain is **unbound** and silently ignored — check binding when a built menu is missing items.
+
+Menu Installer default installs at the avatar expressions-menu top level. To let MA fully own the root menu: create an empty `VRCExpressionsMenu` asset, point AvatarDescriptor `expressionsMenu` at it, and set the Installer `menuToAppend` to null. The stock menu must then be folded in manually (原有菜单 submenu referencing original assets) or it is lost.
+
 Check:
 
 - whether the item is actually bound to a target menu;
@@ -42,11 +46,14 @@ Check:
 - duplicate defaults and menu-page overflow;
 - icon asset compatibility.
 
-A Menu Item may automatically create a parameter when one is not otherwise declared. Prefer an explicit Parameters component for reusable modules or when saved/synced/default semantics matter.
+A Menu Item may automatically create a parameter when one is not otherwise declared. Auto-created params (`__MA/AutoParam/...`) are preferred; use an explicit Parameters component only when saved/synced/default/Int semantics matter.
 
 ## Parameters
 
-Use for custom animator/expression parameters and conflict-safe reusable modules.
+Use for custom animator/expression parameters with explicit semantics — but only when auto-generation is insufficient. **Auto-first**: an empty `param` + `automaticValue=true` MenuItem makes MA create `__MA/AutoParam/<name>$hash` automatically; reuse the avatar's original Parameters asset where possible. Prefer `ModularAvatarParameters` when:
+- mutual exclusion needs explicit Int values (2+ outfits sharing `cloth`/`hair`);
+- a reusable module must ship its own saved/synced/default/rename semantics;
+- a param must be local-only, prefixed, or animator-only.
 
 Check:
 
@@ -57,7 +64,7 @@ Check:
 - duplicate names and parameter budget;
 - PhysBone/contact/raycast prefix usage where supported.
 
-Never infer parameter type from a menu control alone; inspect all animations and drivers that reference it.
+Never infer parameter type from a menu control alone; inspect all animations and drivers that reference it. Remember: single-outfit `cloth` auto-generating as Bool is fine; promote to Int via Parameters when a second outfit arrives.
 
 ## Merge Animator
 

@@ -24,9 +24,15 @@ MA's default-value logic (ParameterAssignerPass): only an item that is `isDefaul
 
 Symptoms: two `all` toggles both end up value=1; clicking an outfit doesn't switch; built `cloth`/`hair` param is Bool instead of Int; nothing worn on startup.
 
-**Fix**: every outfit's `all` (default included) sets `automaticValue=false` + a manual distinct value (Default=1, next=2...). Default outfit additionally `isDefault=true` so its value becomes the param default.
+**Scope**: applies only when 2+ outfits share one param. A SINGLE outfit's `cloth` auto-generating as Bool is fine (def=1). Once a second outfit arrives, promote to Int with `automaticValue=false` + manual distinct values on EVERY `all` (default included), default gets `isDefault=true`.
 
-Verify after build: `cloth`/`hair` are **Int**, default value = default outfit's value (not 0), default container active, others inactive.
+Verify after build: multi-outfit `cloth`/`hair` are **Int**, default value = default outfit's value (not 0), default container active, others inactive.
+
+## 3b. Prefab instance blocks reparenting
+
+- **Symptom**: `Transform.SetParent()` silently no-ops; Console logs "Setting the parent of a transform which resides in a Prefab instance is not possible"; objects stay under the avatar root.
+- **Cause**: Unity forbids reparenting prefab-instance children into scene-created containers.
+- **Fix**: `PrefabUtility.UnpackPrefabInstance(rootGO, PrefabUnpackMode.OutermostRoot, InteractionMode.UserAction)` first. The commercial prefab ASSET stays untouched; only the scene instance becomes independent. Confirm `IsPartOfPrefabInstance=false` and scene-save after.
 
 ## 4. Chinese in codegen becomes `?`
 
@@ -42,6 +48,14 @@ codedom/C#6 with raw Chinese characters writes `?` garble. Always use Unicode es
 ## 6. FX anim paths break after reparenting
 
 Regrouping nodes breaks FX clips that bind old root paths (`path: Cardigan` → `path: Clothes/Default/Cardigan`). Rewrite bindings for all clips reachable from the FX controller. Slider layers stay in FX; toggles move to MA (delete the old FX toggle layers to avoid double control).
+
+**Rebuild pattern (stock avatar)**: when moving nodes breaks the stock controller's clips (e.g. `item_Default/kutsushita/hadashi` binding bare `socks`/`shoes`), do NOT edit the commercial controller. Re-make that logic with MA components on the menu-item nodes:
+- GameObject active switches → `ModularAvatarObjectToggle` (`m_objects` = `{Object.targetObject, Active}`).
+- blendshapes → `ModularAvatarShapeChanger` (`m_shapes` = `{Object.targetObject, ShapeName, ChangeType=Set, Value}`, threshold ~0.01).
+- Empty-param MenuItem + `automaticValue=true` → MA auto-creates a Bool param per toggle.
+- The stale stock clips remain in FX but bind dead paths → harmless (nothing drives them). Verify via built-clone clip scan that MA's `Property Overlay controlled by <name>` entries now drive the new paths.
+
+**Serialized construction gotcha**: populate MA ObjectToggle/ShapeChanger via `SerializedObject` — `m_objects[i].Object` is a nested `AvatarObjectReference` (`referencePath` + `targetObject`), so write `FindPropertyRelative("Object.targetObject")`/`("Object.referencePath")`, NOT `"Object"` directly. `shoeMI.Control.type` direct assignment compiles but may be unreliable under codegen — set `Control.type/name/parameter.name/value` via `SerializedObject.FindProperty("Control.*")`.
 
 ## 7. Multi-avatar scenes
 

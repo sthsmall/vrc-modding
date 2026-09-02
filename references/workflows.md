@@ -1,5 +1,16 @@
 # Task workflows
 
+## A0. MA-ify a stock avatar (first-pass migration)
+
+1. Back up original root menu + Parameters assets as `.bk` siblings before touching anything.
+2. Unpack the avatar if it is a prefab instance (`PrefabUtility.UnpackPrefabInstance`, OutermostRoot, UserAction) — Unity blocks reparenting prefab children; commercial prefab asset stays untouched.
+3. Create empty root menu asset (`_MA_Root.asset`), set AvatarDescriptor `expressionsMenu` to it; create `_MA_Menu` (MA MenuInstaller + MenuGroup) with `menuToAppend=null`.
+4. Keep AvatarDescriptor `expressionParameters` on the ORIGINAL Parameters asset (backed up). Do not add MA Parameters unless mutual exclusion needs Int.
+5. Rebuild original menu top-level controls with `ModularAvatarMenuItem` where clean (設定/表情/手势/姿势/視線...); reference original menu assets unchanged via `Control.subMenu` where rebuilding is impractical → `原有菜单` submenu.
+6. Regroup nodes: `Clothes/Default/` (wearables), `Deco/` (loose props like kemo). Rebuild broken-anim logic with ObjectToggle/ShapeChanger instead of editing commercial controllers.
+7. Add Clothes/装饰 top-level submenus (`Control.type=SubMenu`, `MenuSource=Children`, `menuSource_otherObjectChildren=null`). Part toggles: empty-param MenuItem + ObjectToggle(`Active=false`), name `<part> OFF`. `all`: ObjectToggle→container `Active=true`, single-outfit auto Bool fine, multi-outfit Int + manual values.
+8. `AvatarProcessor.ProcessAvatar()` on a clone (PROVIDER_PREVIEW); verify built menu tree, params, animator clip bindings; check Console; save scene.
+
 ## A. Install a compatible outfit
 
 1. Detect avatar root and outfit prefab instance.

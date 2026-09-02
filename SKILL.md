@@ -1,12 +1,12 @@
----
+﻿---
 name: vrc-modding
-description: Unified VRChat avatar modding workflow built on Modular Avatar — integrate new clothes/hair/outfits/accessories into an avatar (Clothes/Hair container grouping, mutual-exclusion cloth/hair parameters, per-outfit menus, part toggles, MA module integration), plus safe MA component selection, configuration, and build validation. Use when adding or reorganizing outfits, hair, accessories, building Cloth/Hair menus, fixing mutual-exclusion toggles, automaticValue issues, wiring MA/NDMF components, or validating an avatar build. Works exclusively through native unityMCP_* tools for Unity operations.
+description: Unified VRChat avatar modding workflow built on Modular Avatar — integrate new clothes/hair/outfits/accessories into an avatar (Clothes/Hairs container grouping, mutual-exclusion cloth/hair parameters, per-outfit menus, part toggles, MA module integration), plus safe MA component selection, configuration, and build validation. Use when adding or reorganizing outfits, hair, accessories, building Clothes/Hairs menus, fixing mutual-exclusion toggles, automaticValue issues, wiring MA/NDMF components, or validating an avatar build. Works exclusively through native unityMCP_* tools for Unity operations.
 license: MIT
 compatibility: OpenCode v2; Unity + VRCSDK + Modular Avatar projects; requires native unityMCP_* tools
 metadata:
   opencode/slash: "true"
   opencode/autoinvoke: "true"
-  version: "2.2.0"
+  version: "2.4.0"
   captured: "2026-09-02"
 ---
 
@@ -17,8 +17,8 @@ Battle-tested workflow for MA-ifying and extending a VRChat avatar (originally d
 ## When to use
 
 - Adding a new outfit, hair, or accessory to an avatar.
-- Regrouping avatar nodes into `Clothes/` / `Hair/` / accessories containers.
-- Building or fixing the Cloth Menu / Hair Menu tree (per-outfit submenus, `all` toggles, part groups).
+- Regrouping avatar nodes into `Clothes/` / `Hairs/` / accessories containers.
+- Building or fixing the Clothes/Hairs Menu tree (per-outfit submenus, `all` toggles, part groups).
 - Debugging mutual-exclusion (two outfits on at once, wrong default outfit, nothing worn on load).
 - Integrating commercial MA/NDMF modules (Nova, RBS_Suimin, LightController, etc.).
 - Selecting, configuring, or validating MA components (MergeArmature, BoneProxy, MenuItem, ObjectToggle, ShapeChanger, BlendshapeSync, MeshCutter, Parameters, MergeAnimator...).
@@ -33,13 +33,16 @@ Battle-tested workflow for MA-ifying and extending a VRChat avatar (originally d
 
 ## Core principles (non-negotiable)
 
-1. **Outfit-grouped organization**: clothes/hair live in category containers under the avatar root — `Clothes/<outfit>/`, `Hair/<outfit>/`. New outfits are sibling folders, never nested inside an existing outfit.
-2. **Mutual exclusion via shared params**: all outfits share one `cloth` Int param, each with a distinct value (Default=1, next=2, ...). Hair uses `hair`. Only one outfit / one hair is on at a time.
+1. **Outfit-grouped organization**: clothes/hair live in category containers under the avatar root — `Clothes/<outfit>/`, `Hairs/<outfit>/`. New outfits are sibling folders, never nested inside an existing outfit.
+2. **Mutual exclusion via shared params**: all outfits share one `cloth` param (single outfit → auto Bool; 2+ outfits → Int, each with a distinct value Default=1, next=2...). Hair uses `hair`. Only one outfit / one hair is on at a time.
 3. **Default worn outfit is driven by MA, not by scene state**: every outfit container is `active=False` in the editor. The menu item marked `isDefault=True` decides what is worn on load. isDefault points to "the initial look the user wants" — not necessarily a container named `Default`.
 4. **Keep system nodes at root**: `Armature`, `Body`, `Body_base`, `Ground`, `AutoAnchorObject`, `VRCHeadChop` are never moved.
 5. **Switch vs slider split**: on/off switches → MA ObjectToggle; continuous blendshape sliders → stay in the FX layer.
 6. **Never touch commercial assets**: fix commercial module path issues via MA config (e.g. MergeAnimator `relativePathRoot`), not by editing the asset's controllers/animations.
 7. **Respect the source of truth**: MA components and source prefabs are declarations; NDMF preview, build clones, merged controllers, and generated assets are outputs. Never repair an output when the source component can be repaired.
+8. **Parameters auto-first (v2.3)**: let MA auto-generate params (empty `param` + `automaticValue=true`) whenever possible. Reuse the avatar's original Parameters file (back it up as `.bk` first); do NOT create a `ModularAvatarParameters` component unless mutual exclusion needs explicit Int values, or a specific saved/synced/rename semantic is required. `cloth` stays Bool for a single outfit; promote to Int only when a second outfit arrives.
+9. **Menu file strategy (v2.3)**: create a NEW empty menu asset as the root (e.g. `_MA_Root`), back up the original root menu (`.bk`), and point the AvatarDescriptor `expressionsMenu` at the empty root (MA fills it at build). Original menu content: rebuild with `ModularAvatarMenuItem` where feasible (re-make = clean MA controls); otherwise move the item under an `原有菜单` submenu by referencing the original menu asset unchanged.
+10. **3-group root menu layout (v2.3)**: `_MA_Menu` root splits into `原有菜单` / `Clothes` / `装饰` top-level submenus, each `Control.type=SubMenu` + `MenuSource=Children` + `menuSource_otherObjectChildren=null` (use own children). Put loose decorative props (kemo, etc.) in a `Deco/` container under the avatar root with a `装饰` submenu.
 
 ## Lock the target before working
 
@@ -56,64 +59,9 @@ structural similarity, or a previous session's editor instance. In multi-avatar
 scenes, locate the intended avatar dynamically (e.g. by exact hierarchy path) —
 never hard-code avatar names that can change on rename.
 
-## Evidence and verification (borrowed and adapted)
+## Evidence and verification
 
-Label every material conclusion with the narrowest evidence layer actually run:
-
-1. `STATIC_SOURCE` - serialized files, GUID/fileID chains, literal values, package metadata.
-2. `UNITY_RESOLVED` - imported assets, prefab instances, component types, resolved hierarchy observed through the selected Unity MCP instance.
-3. `PROVIDER_PREVIEW` - MA/NDMF source preview or introspection before final transformation (e.g. `AvatarProcessor.ProcessAvatar()` on a clone).
-4. `NDMF_BUILT` - the generated avatar after MA/NDMF/Avatar Optimizer build passes.
-5. `SDK_BUILD` - VRChat SDK validation and the exact built bundle/parameter result.
-6. `CLIENT_RUNTIME` - behavior observed in Gesture Manager, Play Mode, Build & Test, desktop, VR, or multiplayer. Name the exact runtime layer.
-7. `UPLOAD_CONFIRMED` - the explicitly authorized uploaded avatar and its observed result.
-
-Never promote one layer into another. In particular, do not describe raw YAML,
-a provider preview, or an old build cache as final player behavior.
-
-### Status language
-
-Use `PASS` only for an executed layer whose acceptance criteria were met. Otherwise:
-
-- `NOT_RUN` - a layer was not attempted.
-- `BUILD_REQUIRED` - source evidence cannot answer a generated-state question.
-- `MCP_REQUIRED` - the claim requires Unity Editor state but no usable Unity MCP instance is connected.
-- `BLOCKED` - an attempted layer could not produce reliable evidence.
-- `STALE` - dated evidence invalidated by a refresh trigger.
-- `AMBIGUOUS_TARGET` - a build, cache, or duplicate object cannot be associated with exactly one avatar.
-
-### Validate in proportion to the claim
-
-- For a literal serialized change, use static diff plus import/compile.
-- For a resolved component or prefab claim, use the selected Unity MCP instance.
-- For merged menus, parameters, Animator layers, optimized meshes, or generated components, inspect the NDMF/provider build output.
-- For visual, audio, gesture, Contact, PhysBone, Blink, Lip Sync, or synchronization behavior, run the exact authorized runtime layer.
-- For parameter limits, prefer SDK/provider APIs over hand arithmetic. Keep source estimates separate from final built cost.
-- Do not call an unrun layer `PASS`. Report it as `NOT_RUN`, `BLOCKED`, or `BUILD_REQUIRED`.
-
-### Authorization boundaries
-
-| Request wording | Normally authorized | Not automatically authorized |
-| --- | --- | --- |
-| Inspect / explain / audit / diagnose | Read files, inspect live state, non-mutating diagnostics | Save, Apply, import/refresh, Play Mode, build, upload |
-| Fix / change / remove / migrate | Narrow source edits + proportional import/compile validation | Build & Test, fresh size builds, publish/upload |
-| Preview or test | The named preview/runtime layer and its reversible setup | Upload or unrelated cleanup |
-| Build | The named build for the exact target | Upload; destructive source changes |
-| Upload or publish | Only the exact confirmed avatar and platform after preflight | Selecting a target by guess or uploading another active descriptor |
-
-When the requested action can overwrite unsaved scene work, modify a shared source, or affect multiple consumers beyond the named target, stop and obtain the missing decision.
-
-### Shared and generated ownership
-
-Before a change, classify the target as one of:
-
-- **Scene override (instance)** - edit only the named instance; do not assume the prefab asset changes.
-- **Shared asset** - prefab/material/menu/parameters/controller/clip/mesh/texture used by multiple roots; map every consumer first, a change is multi-consumer unless isolation is proven.
-- **Editable generator source** - the provider component/source prefab/config; edit the source supported by that provider, then regenerate.
-- **Generated output** - timestamped tool output, NDMF result, merged Animator, optimized mesh; inspect or diff but never edit as source of truth.
-- **Build clone / cache** - temporary preview/built copy or editor cache; treat as disposable diagnostics.
-
-Map all known consumers before modifying shared assets. Do not edit timestamped or tool-owned generated output. Apply, regeneration, and build operations can affect more avatars than the selected scene object.
+Label every material conclusion with the narrowest evidence layer actually run — `STATIC_SOURCE` → `UNITY_RESOLVED` → `PROVIDER_PREVIEW` → `NDMF_BUILT` → `SDK_BUILD` → `CLIENT_RUNTIME` → `UPLOAD_CONFIRMED`. Never promote one layer into another (raw YAML/preview/clone ≠ final player behavior). Status language (`PASS` only for an executed layer; else `NOT_RUN` / `BUILD_REQUIRED` / `MCP_REQUIRED` / `BLOCKED` / `STALE` / `AMBIGUOUS_TARGET`), proportional validation, the authorization matrix, and shared/generated ownership rules are all detailed in `references/evidence-and-authorization.md` — consult it before conclusions cross into previews/builds/runtime or before changing shared/generated assets.
 
 ## Gesture Manager and Avatar Optimizer rules
 
@@ -131,20 +79,23 @@ Map all known consumers before modifying shared assets. Do not edit timestamped 
 
 ## Source and version discipline
 
-1. Information authority order: `Packages/manifest.json` → `packages-lock.json` → installed package `package.json` → installed C# source/inspectors/docs → official docs matching the installed version → official release notes.
-2. Before using a feature introduced recently, state: `Installed MA version: X` / `Docs version consulted: Y` / `Compatibility: supported | unsupported | uncertain`. If uncertain, do not write until the type/field is found in the installed package.
-3. Never guess class names, serialized fields, paths, or GUIDs. Verify exact types via `unityMCP_unity_reflect` and read serialized fields via `SerializedObject`/`FindProperty` (check for null before reading).
-4. Never edit files under `Library/PackageCache/` or immutable package sources. Do not modify imported BOOTH content in place.
+- Information authority order (manifest → lock → installed package → official docs → release notes) and web-access policy are detailed in `references/source-policy.md`.
+- Before using a feature introduced recently, state: `Installed MA version: X` / `Docs version consulted: Y` / `Compatibility: supported | unsupported | uncertain`. If uncertain, do not write until the type/field is found in the installed package.
+- Never guess class names, serialized fields, paths, or GUIDs. Verify exact types via `unityMCP_unity_reflect` and read serialized fields via `SerializedObject`/`FindProperty` (check for null before reading).
+- Never edit files under `Library/PackageCache/` or immutable package sources. Do not modify imported BOOTH content in place.
 
-## Standard workflow (add an outfit/hair)
+## Standard workflow (MA-ify an existing avatar)
 
-1. Put the model under `Clothes/<outfit>/` (or `Hair/<outfit>/`).
+Full step-by-step: `references/workflows.md` (A0). Summary — back up original menu+Parameters as `.bk`; create an empty `_MA_Root` menu asset and point AvatarDescriptor at it (`_MA_Menu` = MenuInstaller+MenuGroup, `menuToAppend=null`); rebuild original top-level controls with `ModularAvatarMenuItem` or fold them under `原有菜单` referencing the original assets unchanged; keep AvatarDescriptor `expressionParameters` on the original (backed-up) asset; regroup wearables into `Clothes/Default/` and loose props into `Deco/` (unpack prefab instance first if reparenting is blocked); rebuild broken stock FX logic with ObjectToggle/ShapeChanger; then build-verify on a clone.
+
+### Add a new outfit/hair (existing MA-ified avatar)
+
+1. Put the model under `Clothes/<outfit>/` (or `Hairs/<outfit>/`).
 2. Independent armature? → add the MA set: **MergeArmature** on its armature (`mergeTarget` = avatar main Armature) + **MeshSettings** (RootBone/ProbeAnchor to main armature). Verify bone mapping resolves. Rigid accessory with its own small bone system → **BoneProxy** on the accessory root pointing at the target avatar bone. Do not use OutfitRoot for plain accessories.
-3. In `_MA_Menu/<Clothes|Hair Menu>`, create the outfit submenu with `ModularAvatarMenuItem` `Control.type=SubMenu`, `MenuSource=Children`.
+3. In `_MA_Menu/Clothes`, create the outfit submenu with `ModularAvatarMenuItem` `Control.type=SubMenu`, `MenuSource=Children`.
 4. Add the **`all`** master toggle:
-   - MenuItem Toggle, `param=cloth` (or `hair`), distinct `value`.
+   - MenuItem Toggle, `param=cloth`, distinct `value`. Single outfit: leave `automaticValue=true` (MA makes a Bool cloth=1, fine). 2+ outfits: `automaticValue=false` + manual distinct values on EVERY `all` (default included) — `cloth` must be Int and declared via Parameters once >1 outfit exists.
    - MA ObjectToggle → references the outfit root container, `Active=true`.
-   - **`automaticValue=false` + manual value on every outfit (including default)** — otherwise mutual exclusion silently breaks (see gotchas).
 5. Part toggles: group into 上装/下装/饰品/鞋 (or per hair part) submenus to stay under VRChat's 8-control limit. Each part toggle: MenuItem Toggle (param empty → MA auto param) + ObjectToggle with `Active=false` (activating the toggle hides the part).
 6. Default outfit's `all` gets `isDefault=True`.
 7. Container stays `active=False` in the scene.
@@ -156,7 +107,7 @@ Map all known consumers before modifying shared assets. Do not edit timestamped 
 - Skinned outfit with its own armature → **MergeArmature** (+ MeshSettings for RootBone/ProbeAnchor).
 - Rigid accessory attached to a bone (glasses, hats, props, contacts) → **BoneProxy**.
 - Hierarchy expression control → **Menu Item** (+ Menu Installer / parent MenuSource=Children).
-- Custom animator/expression parameters → **Parameters**.
+- Custom animator/expression parameters → **auto-generate first**; add **Parameters** only for mutual-exclusion Int values or saved/synced/rename semantics. Reuse the original Parameters asset when possible.
 - Merge a controller into a playable layer → **Merge Animator**.
 - Body/outfit blendshapes stay aligned → **Blendshape Sync**.
 - Set body blendshapes while a module is active → **Shape Changer**.
@@ -178,10 +129,12 @@ Map all known consumers before modifying shared assets. Do not edit timestamped 
 
 ## Validation checklist (run after every change)
 
+This is the run-after-every-change checklist. `references/safety-validation.md` has a categorized version (object/reference, armature/mesh, animator/menu/parameters, build pipeline) plus approval and rollback requirements — consult it for deeper checks.
+
 - [ ] Target locked: exact avatar path, instance, scene dirty state recorded.
 - [ ] Outfit containers `active=False` in scene; default outfit enabled via `isDefault=True` on the built clone (`PROVIDER_PREVIEW`).
-- [ ] `cloth`/`hair` params are **Int** with default value = default outfit's value (not 0).
-- [ ] All `all` toggles: `automaticValue=false`, distinct values; no two outfits share a value.
+- [ ] Single-outfit `cloth` may be auto Bool; with 2+ outfits `cloth`/`hair` are **Int** with default value = default outfit's value (not 0), declared explicitly.
+- [ ] All `all` toggles in a mutual-exclusion group: `automaticValue=false`, distinct values; no two outfits share a value.
 - [ ] Submenus ≤ 8 controls each (no accidental `More` overflow).
 - [ ] ObjectToggle `referencePath` set to full avatar-relative path (e.g. `Clothes/Default/Cardigan`) and `targetObject` set; resolved target is not null.
 - [ ] Target nodes are `Untagged`, not `EditorOnly` (EditorOnly nodes are stripped by the build).
@@ -200,7 +153,7 @@ Map all known consumers before modifying shared assets. Do not edit timestamped 
 - `references/evidence-and-authorization.md` — evidence ladder, status language, validation proportionality, authorization matrix, shared/generated ownership.
 - `references/source-policy.md` — version discipline and authority order.
 - `references/safety-validation.md` — approval boundaries, rollback, validation checklist, evidence standard.
-- `references/workflows.md` — task workflows (install outfit, attach accessory, add toggle, material variant, blendshape sync, hide clipping, merge animator, troubleshoot build).
+- `references/workflows.md` — task workflows (MA-ify an existing avatar, install outfit, attach accessory, add toggle, material variant, blendshape sync, hide clipping, merge animator, troubleshoot build).
 - `references/unity-mcp-playbook.md` — read-only discovery and safe-write sequences through Unity MCP.
 - `references/version-notes.md` — MA version snapshot (check installed version before trusting).
 - `references/official-sources.md` — official MA documentation links.
