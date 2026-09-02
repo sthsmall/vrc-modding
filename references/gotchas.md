@@ -18,13 +18,13 @@ Every known pitfall from the modding workflow, with symptom → root cause → f
 
 MA's default-value logic (ParameterAssignerPass): only an item that is `isDefault && !automaticValue` becomes the param's default value.
 
-- **isDefault + automaticValue=true** in a mutual-exclusion group → param defaults to **0** → nothing is worn on load.
-- **non-default item with Bool/Float param** → MA forces value=1 → two outfits on at once, cannot switch.
-- **Int params** → MA auto-assigns increasing values (accidental mutual exclusion).
+- **isDefault + automaticValue=true** in a mutual-exclusion group → param defaults to **0** → nothing is worn on load (when the param is NOT explicitly declared).
+- **non-default item with Bool/Float auto param** → MA forces value=1 → two outfits on at once, cannot switch.
+- **un-declared Int params** → MA auto-assigns increasing values (accidental mutual exclusion).
 
 Symptoms: two `all` toggles both end up value=1; clicking an outfit doesn't switch; built `cloth`/`hair` param is Bool instead of Int; nothing worn on startup.
 
-**Scope**: applies only when 2+ outfits share one param. A SINGLE outfit's `cloth` auto-generating as Bool is fine (def=1). Once a second outfit arrives, promote to Int with `automaticValue=false` + manual distinct values on EVERY `all` (default included), default gets `isDefault=true`.
+**Scope & the real fix**: applies when 2+ outfits share one param. The robust fix is to **declare `cloth` as Int via a MA Parameters component** (with `defaultValue` = the default outfit's value) and give each `all` a manual distinct `Control.value`. With an explicit Int declaration, `automaticValue` may stay `true` — MA respects the manual value and mutual exclusion works (verified: `cloth` builds as Int def=1, default container active, others inactive). Single-outfit `cloth` auto-generating as Bool (no Parameters component) is also fine.
 
 Verify after build: multi-outfit `cloth`/`hair` are **Int**, default value = default outfit's value (not 0), default container active, others inactive.
 

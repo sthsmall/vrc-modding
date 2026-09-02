@@ -8,7 +8,7 @@
 4. Keep AvatarDescriptor `expressionParameters` on the ORIGINAL Parameters asset (backed up). Do not add MA Parameters unless mutual exclusion needs Int.
 5. Rebuild original menu top-level controls with `ModularAvatarMenuItem` where clean (設定/表情/手势/姿势/視線...); reference original menu assets unchanged via `Control.subMenu` where rebuilding is impractical → `原有菜单` submenu.
 6. Regroup nodes: `Clothes/Default/` (wearables), `Deco/` (loose props like kemo). Rebuild broken-anim logic with ObjectToggle/ShapeChanger instead of editing commercial controllers.
-7. Add Clothes/装饰 top-level submenus (`Control.type=SubMenu`, `MenuSource=Children`, `menuSource_otherObjectChildren=null`). Part toggles: empty-param MenuItem + ObjectToggle(`Active=false`), name `<part> OFF`. `all`: ObjectToggle→container `Active=true`, single-outfit auto Bool fine, multi-outfit Int + manual values.
+7. Add Clothes/装饰 top-level submenus (`Control.type=SubMenu`, `MenuSource=Children`, `menuSource_otherObjectChildren=null`). Each outfit = one submenu under Clothes (default = lowercase `default`), `all` + part toggles INSIDE it. Part toggles: empty-param MenuItem + ObjectToggle(`Active=false`), name `<part> OFF`. Commercial module parts: bind module's own params directly, remove/disable its MenuInstaller. `all`: ObjectToggle→container `Active=true`; single-outfit auto Bool fine; multi-outfit declare `cloth` Int via MA Parameters + manual distinct values (automaticValue may stay true).
 8. `AvatarProcessor.ProcessAvatar()` on a clone (PROVIDER_PREVIEW); verify built menu tree, params, animator clip bindings; check Console; save scene.
 
 ## A. Install a compatible outfit

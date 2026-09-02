@@ -37,21 +37,26 @@ Root (_MA_Root, empty asset; MA fills at build)
 │   ├── しゃがみポーズ → kuuta_CrouchingChange
 │   └── 視線制御 → kuuta_JP_EyeControl
 ├── Clothes（SubMenu, Children）
-│   ├── all（cloth, isDefault=True）
-│   ├── Shoes / Socks（自动参数）
-│   ├── clothes01 OFF / clothes02 OFF / clothes03 OFF（部件开关, 自动参数）
-│   └── <NewOutfit>（新增套装子菜单）
+│   ├── default（默认套装子菜单）
+│   │   ├── all（cloth=1, isDefault=True）
+│   │   ├── Shoes / Socks（自动参数）
+│   │   └── clothes01 OFF / clothes02 OFF / clothes03 OFF（部件开关, 自动参数）
+│   └── Theologica（新增套装子菜单）
+│       ├── all（cloth=2）
+│       └── coat_off / coat_jacket_off / coat_chain_off / boots_ON/OFF（自带参数）
 └── 装饰（SubMenu, Children）
     └── kemo OFF（自动参数, OT→Deco/kemo）
 ```
 
 Rules:
-- Each outfit = one submenu = one `all` master toggle + part toggles.
+- **Each outfit = one submenu under Clothes** (`default/`, `Theologica/`, ...) — `all` master toggle + part toggles live INSIDE the outfit submenu, never flattened under Clothes.
+- Default outfit submenu named lowercase `default`.
 - Group part toggles by 上装/下装/饰品/鞋 when > 8 controls, to avoid VRChat's auto `More` page.
 - Part toggle naming: `<part> OFF` (activating the item hides the part).
 - Outfit master uses shared `cloth`, hair uses shared `hair`.
 - Top-level menus: `Control.type=SubMenu`, `MenuSource=Children`, `menuSource_otherObjectChildren=null` (use own children).
 - **Prefer re-making original menu content with MA MenuItem where clean**; otherwise reference the original menu asset unchanged under 原有菜单 (never edit commercial menu assets).
+- **Commercial module part toggles**: bind the module's OWN params directly with MenuItem (`Control.parameter.name` = e.g. `coat_off`, `automaticValue=false`) instead of referencing the module's menu asset. No duplicate param declaration needed — the module's controller drives them. Remove/disable the module's own MenuInstaller so it doesn't install to the avatar top level.
 
 ## 2b. Menu & parameter asset backup habit
 
@@ -73,7 +78,7 @@ Before MA-ifying a stock avatar, duplicate the original root menu and Parameters
 ### Mutual exclusion
 - All outfits share `cloth`; clicking an outfit sets `cloth` to its value; only matching outfit activates.
 - **Single outfit**: `cloth` auto-generates as Bool — fine.
-- **2+ outfits**: `cloth` must be Int with `automaticValue=false` + manual distinct values on EVERY `all` (default included), and declared via a MA Parameters component (or explicit param) — otherwise mutual exclusion silently breaks.
+- **2+ outfits**: `cloth` must be **Int**, declared via a MA Parameters component (or explicit param), with `defaultValue` = the default outfit's value. Each outfit's `all` MenuItem sets a manual distinct `Control.value` (Default=1, next=2...). `automaticValue` may stay `true` — with an explicit Int declaration MA respects the manual value and does NOT break mutual exclusion (verified). `isDefault` on the default outfit's `all` marks the startup look.
 
 ## 4. Parameter naming
 
@@ -97,15 +102,16 @@ Before MA-ifying a stock avatar, duplicate the original root menu and Parameters
 - Never modify a collection inside a `foreach` over it (missed/mistaken moves).
 - Verify actual names via base64: `Convert.ToBase64String(UTF8.GetBytes(name))` (terminal mojibake is normal).
 
-## 6. Commercial MA module integration (Nova pattern)
+## 6. Commercial MA module integration
 
 Full MA modules ship their own MenuItem/Parameters/MenuInstaller/MergeAnimator/MergeArmature/MeshSettings/BlendshapeSync.
 
 1. Place the module in the right category (`Hairs/`, `Clothes/`, root...).
-2. Keep its built-in MA config intact (author-designed features).
-3. Its root MenuItem auto-installs its own submenu — don't be surprised by menu duplication; fold it under your main menu as a submenu child.
-4. Add a master `all` toggle with shared param + `automaticValue=false` + manual value.
-5. Module container `active=False`; `isDefault` controls startup state.
+2. Keep its built-in MA config intact — MergeArmature/MergeAnimator/Parameters/MeshSettings stay as the author designed.
+3. **Remove/disable its own MenuInstaller** (or set `installTargetMenu`) so it doesn't install to the avatar top level; the menu tree is built by OUR structure instead.
+4. Add a master `all` toggle with shared `cloth`/`hair` param + manual value (declare the param Int via MA Parameters once 2+ outfits exist; `automaticValue` may stay true).
+5. **Part toggles**: bind the module's OWN params directly with MenuItem (`Control.parameter.name` = e.g. `coat_off`, `automaticValue=false`) — no duplicate param declaration, the module's controller drives them. Skip referencing the module's menu asset.
+6. Module container `active=False`; `isDefault` controls startup state.
 
 ### Animation path fix after reparenting
 If a module's controller binds paths starting at the module name (`Nova/~Wing`) and you moved the module into a subfolder (`Hairs/Nova`), the paths break. Fix by setting the module **MergeAnimator `relativePathRoot`** to the module's parent folder — MA prefixes the missing path so bindings resolve. Prefer this over editing the commercial animations.

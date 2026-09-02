@@ -6,7 +6,7 @@ compatibility: OpenCode v2; Unity + VRCSDK + Modular Avatar projects; requires n
 metadata:
   opencode/slash: "true"
   opencode/autoinvoke: "true"
-  version: "2.4.0"
+  version: "2.5.0"
   captured: "2026-09-02"
 ---
 
@@ -92,11 +92,11 @@ Full step-by-step: `references/workflows.md` (A0). Summary — back up original 
 
 1. Put the model under `Clothes/<outfit>/` (or `Hairs/<outfit>/`).
 2. Independent armature? → add the MA set: **MergeArmature** on its armature (`mergeTarget` = avatar main Armature) + **MeshSettings** (RootBone/ProbeAnchor to main armature). Verify bone mapping resolves. Rigid accessory with its own small bone system → **BoneProxy** on the accessory root pointing at the target avatar bone. Do not use OutfitRoot for plain accessories.
-3. In `_MA_Menu/Clothes`, create the outfit submenu with `ModularAvatarMenuItem` `Control.type=SubMenu`, `MenuSource=Children`.
+3. In `_MA_Menu/Clothes`, create the outfit submenu with `ModularAvatarMenuItem` `Control.type=SubMenu`, `MenuSource=Children`. Every outfit gets its own submenu under Clothes (default outfit = lowercase `default`); part toggles live INSIDE the submenu, not flattened under Clothes.
 4. Add the **`all`** master toggle:
-   - MenuItem Toggle, `param=cloth`, distinct `value`. Single outfit: leave `automaticValue=true` (MA makes a Bool cloth=1, fine). 2+ outfits: `automaticValue=false` + manual distinct values on EVERY `all` (default included) — `cloth` must be Int and declared via Parameters once >1 outfit exists.
+   - MenuItem Toggle, `param=cloth`, manual distinct `value` per outfit (Default=1, next=2...). Single outfit: no Parameters needed (auto Bool fine). 2+ outfits: declare `cloth` as **Int** via a MA Parameters component (`defaultValue` = default outfit's value); `automaticValue` may stay `true` (with explicit Int declaration MA respects the manual value).
    - MA ObjectToggle → references the outfit root container, `Active=true`.
-5. Part toggles: group into 上装/下装/饰品/鞋 (or per hair part) submenus to stay under VRChat's 8-control limit. Each part toggle: MenuItem Toggle (param empty → MA auto param) + ObjectToggle with `Active=false` (activating the toggle hides the part).
+5. Part toggles: group into 上装/下装/饰品/鞋 (or per hair part) submenus to stay under VRChat's 8-control limit. Each part toggle: MenuItem Toggle (param empty → MA auto param) + ObjectToggle with `Active=false` (activating the toggle hides the part). For a commercial module's parts, bind the module's OWN params directly (`Control.parameter.name` = e.g. `coat_off`, `automaticValue=false`) instead of referencing its menu asset — and remove/disable the module's own MenuInstaller so it doesn't install to the avatar top level.
 6. Default outfit's `all` gets `isDefault=True`.
 7. Container stays `active=False` in the scene.
 8. Chinese menu names written via Unicode escapes when using codegen (raw Chinese becomes `?`).
@@ -133,8 +133,8 @@ This is the run-after-every-change checklist. `references/safety-validation.md` 
 
 - [ ] Target locked: exact avatar path, instance, scene dirty state recorded.
 - [ ] Outfit containers `active=False` in scene; default outfit enabled via `isDefault=True` on the built clone (`PROVIDER_PREVIEW`).
-- [ ] Single-outfit `cloth` may be auto Bool; with 2+ outfits `cloth`/`hair` are **Int** with default value = default outfit's value (not 0), declared explicitly.
-- [ ] All `all` toggles in a mutual-exclusion group: `automaticValue=false`, distinct values; no two outfits share a value.
+- [ ] Single-outfit `cloth` may be auto Bool; with 2+ outfits `cloth`/`hair` are **Int** (via MA Parameters) with default value = default outfit's value (not 0).
+- [ ] All `all` toggles in a mutual-exclusion group have distinct manual values; no two outfits share a value (automaticValue may stay true when the param is explicitly declared Int).
 - [ ] Submenus ≤ 8 controls each (no accidental `More` overflow).
 - [ ] ObjectToggle `referencePath` set to full avatar-relative path (e.g. `Clothes/Default/Cardigan`) and `targetObject` set; resolved target is not null.
 - [ ] Target nodes are `Untagged`, not `EditorOnly` (EditorOnly nodes are stripped by the build).
