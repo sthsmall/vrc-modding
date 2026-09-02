@@ -79,6 +79,7 @@ Before MA-ifying a stock avatar, duplicate the original root menu and Parameters
 - All outfits share `cloth`; clicking an outfit sets `cloth` to its value; only matching outfit activates.
 - **Single outfit**: `cloth` auto-generates as Bool — fine.
 - **2+ outfits**: `cloth` must be **Int**, declared via a MA Parameters component (or explicit param), with `defaultValue` = the default outfit's value. Each outfit's `all` MenuItem sets a manual distinct `Control.value` (Default=1, next=2...). `automaticValue` may stay `true` — with an explicit Int declaration MA respects the manual value and does NOT break mutual exclusion (verified). `isDefault` on the default outfit's `all` marks the startup look.
+- **Note on auto promotion**: if `cloth` is left un-declared, 2 auto toggles build as Bool (values forced 0/1); a 3rd auto value promotes it to Int automatically, but values are auto-assigned from 0 and `defaultValue` binds to the first declared toggle — not necessarily your intended default. Explicit Int declaration is the controlled route.
 
 ## 4. Parameter naming
 
